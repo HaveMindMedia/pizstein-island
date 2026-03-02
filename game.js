@@ -1,5 +1,5 @@
 // ============================================================
-// ESCAPE FROM PIZSTEIN ISLAND
+// ESCAPE FROM PEPSTEIN ISLAND
 // A princess. A knife. A grease-soaked hellscape.
 // Built with Phaser 3 — zero image files, pure Graphics API
 // This is satire at full volume. You have been warned.
@@ -16,7 +16,7 @@ const ENEMY_DETECT_RANGE = 150;
 const GERALD_TIME = 300; // 5 minutes in seconds
 const ENEMY_RESPAWN_TIME = 15000; // 15 seconds
 
-// Crybaby lines — the entitled elite of Pizstein Island
+// Crybaby lines — the entitled elite of Pepstein Island
 const CRYBABY_LINES = [
   "Do you have ANY idea who my father IS?!",
   "I literally went to the RIGHT schools.",
@@ -56,7 +56,7 @@ class MenuScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor('#1a0a00');
 
     // Dripping cheese title — big, bold, yellow-orange
-    const title = this.add.text(cx, cy - 120, 'ESCAPE FROM\nPIZSTEIN ISLAND', {
+    const title = this.add.text(cx, cy - 120, 'ESCAPE FROM\nPEPSTEIN ISLAND', {
       fontSize: '52px',
       fontFamily: 'Impact, Arial Black, sans-serif',
       fontStyle: 'bold',

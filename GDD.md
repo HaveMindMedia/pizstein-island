@@ -1,4 +1,4 @@
-# PIZSTEIN ISLAND — Game Design Document v0.2
+# PEPSTEIN ISLAND — Game Design Document v0.2
 
 ## Logline
 A lewd, crude, and occasionally transcendent puzzle-platformer. A princess. A cursed island run by sentient pizzas. A goddess who never misses. Let's fn go.
@@ -6,7 +6,7 @@ A lewd, crude, and occasionally transcendent puzzle-platformer. A princess. A cu
 ## Protagonists
 
 ### Throother (Player Character)
-- Princess, lost, ends up on Pizstein Island
+- Princess, lost, ends up on Pepstein Island
 - Starts with basic physical abilities
 - Full power unlocked: **The Artemis Arrow** (see Powers)
 
