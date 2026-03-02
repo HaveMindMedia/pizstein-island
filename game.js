@@ -14,6 +14,7 @@ const JUMP_VELOCITY = -420;
 const ATTACK_RANGE = 60;
 const ENEMY_DETECT_RANGE = 150;
 const GERALD_TIME = 300; // 5 minutes in seconds
+const ENEMY_RESPAWN_TIME = 15000; // 15 seconds
 
 // Crybaby lines — the entitled elite of Pizstein Island
 const CRYBABY_LINES = [
@@ -21,6 +22,22 @@ const CRYBABY_LINES = [
   "I literally went to the RIGHT schools.",
   "37 INCHES OF MOZZ AND YOU STILL DISRESPECT ME?!",
   "MY LAWYERS WILL-- *gets hit* --MY LAWYERS WILL--",
+];
+
+// Pepperoni Guy lines
+const PEPPERONI_LINES = [
+  "You think you can handle THE STICK?!",
+  "I didn't come here to LOSE.",
+  "My pepperoni is PREMIUM GRADE.",
+  "You don't even know what REAL toppings are!",
+];
+
+// Trumplethinpen lines when hit
+const TRUMP_LINES = [
+  "You're FIRED. I'm signing it RIGHT NOW.",
+  "Nobody has a bigger pen than me. Nobody.",
+  "This is a TOTAL WITCH HUNT.",
+  "Sad! Very sad. Possibly the saddest thing I've ever seen.",
 ];
 
 // ============================================================
@@ -39,7 +56,7 @@ class MenuScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor('#1a0a00');
 
     // Dripping cheese title — big, bold, yellow-orange
-    const title = this.add.text(cx, cy - 100, 'ESCAPE FROM\nPIZSTEIN ISLAND', {
+    const title = this.add.text(cx, cy - 120, 'ESCAPE FROM\nPIZSTEIN ISLAND', {
       fontSize: '52px',
       fontFamily: 'Impact, Arial Black, sans-serif',
       fontStyle: 'bold',
@@ -51,15 +68,37 @@ class MenuScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // Subtitle — the mission statement
-    this.add.text(cx, cy + 10, 'A princess. A knife. A grease-soaked hellscape.', {
+    this.add.text(cx, cy - 10, 'A princess. A knife. A grease-soaked hellscape.', {
       fontSize: '18px',
       fontFamily: 'Georgia, serif',
       fontStyle: 'italic',
       color: '#cc8844',
     }).setOrigin(0.5);
 
+    // Controls overlay
+    const controlsY = cy + 30;
+    this.add.text(cx, controlsY, '— CONTROLS —', {
+      fontSize: '14px',
+      fontFamily: 'Courier New, monospace',
+      fontStyle: 'bold',
+      color: '#aa8855',
+    }).setOrigin(0.5);
+
+    const controlLines = [
+      'WASD / Arrows .... Move & Jump',
+      'Space ............ Attack',
+      '1 / 2 / 3 ....... Reality States',
+    ];
+    controlLines.forEach((line, i) => {
+      this.add.text(cx, controlsY + 22 + i * 18, line, {
+        fontSize: '12px',
+        fontFamily: 'Courier New, monospace',
+        color: '#887755',
+      }).setOrigin(0.5);
+    });
+
     // Blinking "PRESS ENTER" text
-    const prompt = this.add.text(cx, cy + 80, 'PRESS ENTER TO PLAY', {
+    const prompt = this.add.text(cx, cy + 120, 'PRESS ENTER TO PLAY', {
       fontSize: '24px',
       fontFamily: 'Courier New, monospace',
       fontStyle: 'bold',
@@ -145,6 +184,68 @@ class IntroScene extends Phaser.Scene {
 }
 
 // ============================================================
+// DEATH SCENE — Throother has fallen
+// ============================================================
+class DeathScene extends Phaser.Scene {
+  constructor() {
+    super({ key: 'DeathScene' });
+  }
+
+  create() {
+    this.cameras.main.setBackgroundColor('#0a0000');
+
+    const cx = GAME_WIDTH / 2;
+    const cy = GAME_HEIGHT / 2;
+
+    // Ominous red vignette
+    const gfx = this.add.graphics();
+    gfx.fillStyle(0x330000, 0.6);
+    gfx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+    this.add.text(cx, cy - 60, 'THROOTHER HAS FALLEN.', {
+      fontSize: '38px',
+      fontFamily: 'Impact, sans-serif',
+      fontStyle: 'bold',
+      color: '#ff2222',
+      stroke: '#000000',
+      strokeThickness: 4,
+    }).setOrigin(0.5);
+
+    this.add.text(cx, cy, 'The grease claims another.', {
+      fontSize: '20px',
+      fontFamily: 'Georgia, serif',
+      fontStyle: 'italic',
+      color: '#cc6644',
+    }).setOrigin(0.5);
+
+    // Restart button
+    const btnBg = this.add.graphics();
+    btnBg.fillStyle(0x882222, 1);
+    btnBg.fillRoundedRect(cx - 100, cy + 50, 200, 50, 10);
+    btnBg.lineStyle(2, 0xff4444, 1);
+    btnBg.strokeRoundedRect(cx - 100, cy + 50, 200, 50, 10);
+
+    const btnText = this.add.text(cx, cy + 75, 'TRY AGAIN', {
+      fontSize: '22px',
+      fontFamily: 'Courier New, monospace',
+      fontStyle: 'bold',
+      color: '#ffffff',
+    }).setOrigin(0.5);
+
+    // Make button interactive
+    const btnZone = this.add.zone(cx, cy + 75, 200, 50).setInteractive();
+    btnZone.on('pointerover', () => btnText.setColor('#ffdd00'));
+    btnZone.on('pointerout', () => btnText.setColor('#ffffff'));
+    btnZone.on('pointerdown', () => this.scene.start('GameScene'));
+
+    // Also restart on ENTER
+    this.input.keyboard.on('keydown-ENTER', () => {
+      this.scene.start('GameScene');
+    });
+  }
+}
+
+// ============================================================
 // GAME SCENE — Where the grease hits the fan
 // ============================================================
 class GameScene extends Phaser.Scene {
@@ -156,20 +257,34 @@ class GameScene extends Phaser.Scene {
     // -- World setup --
     this.cameras.main.setBackgroundColor('#2a1a0a');
     this.physics.world.setBounds(0, 0, 2400, GAME_HEIGHT);
+    this.physics.world.gravity.y = GRAVITY;
 
     // Reality state: 1=Physical, 2=Inverse, 3=Coin
     this.realityState = 1;
     this.playerHP = 3;
     this.geraldTimer = GERALD_TIME;
+    this.geraldSaved = false;
     this.isAttacking = false;
     this.attackCooldown = 0;
     this.invincibleTimer = 0;
+
+    // Boss state
+    this.bossActive = false;
+    this.bossDefeated = false;
+    this.bossHP = 10;
+    this.bossAttackTimer = 0;
+    this.bossLineIndex = 0;
+    this.executiveOrders = this.add.group();
+
+    // Enemy respawn tracking
+    this.deadEnemyData = [];
 
     // -- Draw the background scenery --
     this.drawBackground();
 
     // -- Platforms --
     this.platforms = this.physics.add.staticGroup();
+    this.platformGraphics = []; // track platform gfx for coin-state hiding
     this.createPlatforms();
 
     // -- Grease trails (visual only) --
@@ -178,9 +293,15 @@ class GameScene extends Phaser.Scene {
     // -- Player --
     this.createPlayer();
 
+    // -- Gerald --
+    this.createGerald();
+
     // -- Enemies --
     this.enemies = this.add.group();
     this.createEnemies();
+
+    // -- Boss (Trumplethinpen) --
+    this.createBoss();
 
     // -- Speech bubbles container --
     this.speechBubbles = this.add.group();
@@ -190,7 +311,7 @@ class GameScene extends Phaser.Scene {
     this.cameras.main.setBounds(0, 0, 2400, GAME_HEIGHT);
 
     // -- Collisions --
-    this.physics.add.collider(this.player, this.platforms);
+    this.platformCollider = this.physics.add.collider(this.player, this.platforms);
 
     // -- Input --
     this.cursors = this.input.keyboard.createCursorKeys();
@@ -215,6 +336,13 @@ class GameScene extends Phaser.Scene {
       callback: () => this.tickGerald(),
     });
 
+    // -- Enemy respawn timer --
+    this.time.addEvent({
+      delay: 1000,
+      loop: true,
+      callback: () => this.checkRespawns(),
+    });
+
     // -- Failure overlay (hidden initially) --
     this.failOverlay = this.add.rectangle(
       GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0xff0000, 0
@@ -230,6 +358,11 @@ class GameScene extends Phaser.Scene {
         strokeThickness: 4,
       }
     ).setOrigin(0.5).setScrollFactor(0).setDepth(101).setVisible(false);
+
+    // -- State transition flash overlay --
+    this.stateFlash = this.add.rectangle(
+      GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0xffffff, 0
+    ).setScrollFactor(0).setDepth(99);
   }
 
   // ---- BACKGROUND DRAWING ----
@@ -291,22 +424,6 @@ class GameScene extends Phaser.Scene {
       color: '#ffffff',
     }).setOrigin(0.5);
 
-    // Troll blob under the bridge
-    bg.fillStyle(0x44aa44, 0.8);
-    bg.fillCircle(1225, 450, 25);
-    // Troll eyes
-    bg.fillStyle(0xffffff, 1);
-    bg.fillCircle(1218, 443, 5);
-    bg.fillCircle(1232, 443, 5);
-    bg.fillStyle(0x000000, 1);
-    bg.fillCircle(1219, 444, 2);
-    bg.fillCircle(1233, 444, 2);
-    // Troll mouth
-    bg.lineStyle(2, 0x226622, 1);
-    bg.beginPath();
-    bg.arc(1225, 452, 8, 0, Math.PI, false);
-    bg.strokePath();
-
     // -- POPULATION SIGN (near start) --
     // Sign post
     bg.fillStyle(0x664422, 1);
@@ -327,24 +444,24 @@ class GameScene extends Phaser.Scene {
 
   // ---- PLATFORM CREATION ----
   createPlatforms() {
-    // Ground spans the full level
-    this.addPlatform(0, 530, 2400, 70);
+    // Ground spans the full level (index 0 — never hidden)
+    this.addPlatform(0, 530, 2400, 70, true);
 
     // Elevated platforms for jumping around
-    this.addPlatform(150, 430, 180, 16);
-    this.addPlatform(400, 370, 150, 16);
-    this.addPlatform(620, 320, 130, 16);
-    this.addPlatform(830, 400, 160, 16);
-    this.addPlatform(1000, 340, 140, 16);
-    this.addPlatform(1250, 300, 120, 16);
-    this.addPlatform(1450, 420, 180, 16);
-    this.addPlatform(1650, 360, 140, 16);
-    this.addPlatform(1850, 300, 160, 16);
-    this.addPlatform(2050, 400, 130, 16);
-    this.addPlatform(2200, 340, 150, 16);
+    this.addPlatform(150, 430, 180, 16, false);
+    this.addPlatform(400, 370, 150, 16, false);
+    this.addPlatform(620, 320, 130, 16, false);
+    this.addPlatform(830, 400, 160, 16, false);
+    this.addPlatform(1000, 340, 140, 16, false);
+    this.addPlatform(1250, 300, 120, 16, false);
+    this.addPlatform(1450, 420, 180, 16, false);
+    this.addPlatform(1650, 360, 140, 16, false);
+    this.addPlatform(1850, 300, 160, 16, false);
+    this.addPlatform(2050, 400, 130, 16, false);
+    this.addPlatform(2200, 340, 150, 16, false);
   }
 
-  addPlatform(x, y, w, h) {
+  addPlatform(x, y, w, h, isGround) {
     // Draw platform graphic
     const gfx = this.add.graphics();
     gfx.fillStyle(0x8B5E3C, 1);
@@ -355,7 +472,12 @@ class GameScene extends Phaser.Scene {
     // Physics body
     const zone = this.add.zone(x + w / 2, y + h / 2, w, h);
     this.physics.add.existing(zone, true);
+    zone.isGround = isGround;
     this.platforms.add(zone);
+
+    if (!isGround) {
+      this.platformGraphics.push({ gfx, zone });
+    }
   }
 
   // ---- PLAYER CREATION ----
@@ -382,72 +504,194 @@ class GameScene extends Phaser.Scene {
     g.clear();
 
     const alpha = this.realityState === 3 ? 0.4 : 1; // semi-transparent in Coin State
+    const flipY = this.realityState === 2 ? -1 : 1;
 
     // Body (white rectangle)
     g.fillStyle(0xffffff, alpha);
-    g.fillRect(-10, -8, 20, 30);
+    g.fillRect(-10, -8 * flipY, 20, 30 * flipY);
 
     // Head (white circle)
     g.fillStyle(0xffffff, alpha);
-    g.fillCircle(0, -18, 12);
+    g.fillCircle(0, -18 * flipY, 12);
 
     // Eyes
     g.fillStyle(0x000000, alpha);
-    g.fillCircle(-4, -20, 2);
-    g.fillCircle(4, -20, 2);
+    g.fillCircle(-4, -20 * flipY, 2);
+    g.fillCircle(4, -20 * flipY, 2);
 
     // Knife (small line extending from body)
     const knifeDir = this.playerFacing;
     g.lineStyle(3, 0xcccccc, alpha);
-    g.lineBetween(knifeDir * 10, 0, knifeDir * 28, -5);
+    g.lineBetween(knifeDir * 10, 0, knifeDir * 28, -5 * flipY);
     // Knife handle
     g.lineStyle(4, 0x884422, alpha);
-    g.lineBetween(knifeDir * 8, 2, knifeDir * 14, -1);
+    g.lineBetween(knifeDir * 8, 2 * flipY, knifeDir * 14, -1 * flipY);
 
     // Attack slash visual
     if (this.isAttacking) {
       g.lineStyle(2, 0xffff00, 0.8);
       g.beginPath();
-      g.arc(knifeDir * 20, -5, 25, -0.8 * knifeDir, 0.8 * knifeDir, false);
+      g.arc(knifeDir * 20, -5 * flipY, 25, -0.8 * knifeDir, 0.8 * knifeDir, false);
       g.strokePath();
     }
   }
 
-  // ---- ENEMY CREATION ----
-  createEnemies() {
-    const positions = [
-      { x: 500, y: 500, patrolLeft: 400, patrolRight: 650 },
-      { x: 850, y: 500, patrolLeft: 750, patrolRight: 1000 },
-      { x: 1200, y: 500, patrolLeft: 1100, patrolRight: 1350 },
-      { x: 1600, y: 500, patrolLeft: 1500, patrolRight: 1750 },
-      { x: 2000, y: 500, patrolLeft: 1900, patrolRight: 2150 },
-      { x: 650, y: 290, patrolLeft: 620, patrolRight: 750 },
-      { x: 1050, y: 310, patrolLeft: 1000, patrolRight: 1140 },
-      { x: 1700, y: 330, patrolLeft: 1650, patrolRight: 1790 },
-    ];
+  // ---- GERALD CREATION ----
+  createGerald() {
+    this.gerald = this.add.container(1950, 500);
 
-    positions.forEach((pos, idx) => {
-      this.createEnemy(pos.x, pos.y, pos.patrolLeft, pos.patrolRight, idx);
+    const gfx = this.add.graphics();
+    // Green pizza body
+    gfx.fillStyle(0x44cc44, 1);
+    gfx.fillCircle(0, 0, 20);
+    gfx.lineStyle(3, 0x228822, 1);
+    gfx.strokeCircle(0, 0, 20);
+    // Happy eyes
+    gfx.fillStyle(0xffffff, 1);
+    gfx.fillCircle(-6, -5, 5);
+    gfx.fillCircle(6, -5, 5);
+    gfx.fillStyle(0x000000, 1);
+    gfx.fillCircle(-5, -4, 2);
+    gfx.fillCircle(7, -4, 2);
+    // Smile
+    gfx.lineStyle(2, 0x116611, 1);
+    gfx.beginPath();
+    gfx.arc(0, 2, 8, 0, Math.PI, false);
+    gfx.strokePath();
+    // Little arms waving
+    gfx.lineStyle(2, 0x44cc44, 1);
+    gfx.lineBetween(-20, 0, -30, -12);
+    gfx.lineBetween(20, 0, 30, -12);
+
+    this.gerald.add(gfx);
+    this.gerald.geraldGfx = gfx;
+
+    // GERALD label
+    this.geraldLabel = this.add.text(1950, 470, 'GERALD', {
+      fontSize: '14px',
+      fontFamily: 'Courier New, monospace',
+      fontStyle: 'bold',
+      color: '#44ff44',
+      stroke: '#000000',
+      strokeThickness: 3,
+    }).setOrigin(0.5);
+
+    this.gerald.setVisible(true);
+    this.geraldLabel.setVisible(true);
+  }
+
+  // ---- GERALD SAVE CHECK ----
+  checkGeraldRescue() {
+    if (this.geraldSaved || this.geraldTimer <= 0) return;
+    if (!this.gerald.visible) return;
+
+    const dist = Phaser.Math.Distance.Between(
+      this.player.x, this.player.y, this.gerald.x, this.gerald.y
+    );
+
+    if (dist < 50) {
+      this.saveGerald();
+    }
+  }
+
+  saveGerald() {
+    this.geraldSaved = true;
+
+    // Gerald jump animation
+    this.tweens.add({
+      targets: this.gerald,
+      y: this.gerald.y - 80,
+      duration: 300,
+      yoyo: true,
+      ease: 'Power2',
+      repeat: 2,
+    });
+
+    // Success text
+    const saveText = this.add.text(this.gerald.x, this.gerald.y - 60, 'GERALD SAVED! \uD83C\uDF89', {
+      fontSize: '28px',
+      fontFamily: 'Impact, sans-serif',
+      fontStyle: 'bold',
+      color: '#44ff44',
+      stroke: '#000000',
+      strokeThickness: 4,
+    }).setOrigin(0.5).setDepth(80);
+
+    this.tweens.add({
+      targets: saveText,
+      y: saveText.y - 60,
+      alpha: 0,
+      duration: 2500,
+      ease: 'Power1',
+      onComplete: () => saveText.destroy(),
+    });
+
+    // Camera celebration
+    this.cameras.main.flash(500, 68, 255, 68, true);
+
+    // Reset timer and Gerald after delay — he reappears for next cycle
+    this.time.delayedCall(3000, () => {
+      this.geraldTimer = GERALD_TIME;
+      this.hudGeraldText.setColor('#ff8844');
+      this.geraldSaved = false;
     });
   }
 
-  createEnemy(x, y, patrolLeft, patrolRight, id) {
+  // ---- ENEMY CREATION ----
+  createEnemies() {
+    // Cheese Pizza Guys (tier 1)
+    const cheesePositions = [
+      { x: 500, y: 500, patrolLeft: 400, patrolRight: 650 },
+      { x: 850, y: 500, patrolLeft: 750, patrolRight: 1000 },
+      { x: 1600, y: 500, patrolLeft: 1500, patrolRight: 1750 },
+      { x: 650, y: 290, patrolLeft: 620, patrolRight: 750 },
+      { x: 1700, y: 330, patrolLeft: 1650, patrolRight: 1790 },
+    ];
+
+    cheesePositions.forEach((pos, idx) => {
+      this.createEnemy(pos.x, pos.y, pos.patrolLeft, pos.patrolRight, idx, 'cheese');
+    });
+
+    // Pepperoni Guys (tier 2) — faster, tougher
+    const pepPositions = [
+      { x: 1200, y: 500, patrolLeft: 1100, patrolRight: 1350 },
+      { x: 2000, y: 500, patrolLeft: 1900, patrolRight: 2150 },
+      { x: 1050, y: 310, patrolLeft: 1000, patrolRight: 1140 },
+    ];
+
+    pepPositions.forEach((pos, idx) => {
+      this.createEnemy(pos.x, pos.y, pos.patrolLeft, pos.patrolRight, 100 + idx, 'pepperoni');
+    });
+
+    // Grande Margherita (mini-boss) — large, slow, shockwave
+    this.createEnemy(1450, 490, 1380, 1550, 200, 'margherita');
+  }
+
+  createEnemy(x, y, patrolLeft, patrolRight, id, type) {
     const container = this.add.container(x, y);
     this.physics.world.enable(container);
-    container.body.setSize(36, 36);
-    container.body.setOffset(-18, -18);
+
+    const isMargherita = type === 'margherita';
+    const bodySize = isMargherita ? 56 : 36;
+    container.body.setSize(bodySize, bodySize);
+    container.body.setOffset(-bodySize / 2, -bodySize / 2);
     container.body.setCollideWorldBounds(true);
 
     const gfx = this.add.graphics();
     container.add(gfx);
 
+    const hp = type === 'cheese' ? 3 : type === 'pepperoni' ? 5 : 12;
+    const speed = type === 'cheese' ? 60 : type === 'pepperoni' ? 100 : 35;
+
     // Enemy data
     container.enemyData = {
       id: id,
-      hp: 3,
+      type: type,
+      hp: hp,
+      maxHP: hp,
       patrolLeft: patrolLeft,
       patrolRight: patrolRight,
-      speed: 60,
+      speed: speed,
       direction: 1,
       alerted: false,
       alive: true,
@@ -455,6 +699,11 @@ class GameScene extends Phaser.Scene {
       speechTimer: 0,
       crybabyIndex: 0,
       gfx: gfx,
+      spawnX: x,
+      spawnY: y,
+      // Margherita shockwave
+      shockwaveCooldown: 0,
+      isJumping: false,
     };
 
     this.physics.add.collider(container, this.platforms);
@@ -468,22 +717,30 @@ class GameScene extends Phaser.Scene {
 
     if (!data.alive) return;
 
+    if (data.type === 'cheese') {
+      this.drawCheeseEnemy(g, data);
+    } else if (data.type === 'pepperoni') {
+      this.drawPepperoniEnemy(g, data);
+    } else if (data.type === 'margherita') {
+      this.drawMargheritaEnemy(g, data);
+    }
+  }
+
+  drawCheeseEnemy(g, data) {
     // Pizza body — glorious orange circle
     g.fillStyle(0xff8800, 1);
     g.fillCircle(0, 0, 18);
-
-    // Crust edge
     g.lineStyle(3, 0xcc6600, 1);
     g.strokeCircle(0, 0, 18);
 
-    // Toppings — small red circles (pepperoni, the food of tyrants)
+    // Toppings — small red circles
     g.fillStyle(0xcc2200, 1);
     g.fillCircle(-6, -5, 4);
     g.fillCircle(5, 3, 3);
     g.fillCircle(-2, 8, 3);
     g.fillCircle(8, -7, 3);
 
-    // Evil eyes (always watching)
+    // Evil eyes
     g.fillStyle(0xffffff, 1);
     g.fillCircle(-5, -3, 4);
     g.fillCircle(5, -3, 4);
@@ -491,29 +748,446 @@ class GameScene extends Phaser.Scene {
     g.fillCircle(-4, -2, 2);
     g.fillCircle(6, -2, 2);
 
-    // When alerted: sprout stick-figure arms and legs — maximum menace
     if (data.alerted) {
-      g.lineStyle(2, 0xcc6600, 1);
-      // Arms
-      g.lineBetween(-18, 0, -30, -10);
-      g.lineBetween(18, 0, 30, -10);
-      // Fists
-      g.fillStyle(0xcc6600, 1);
-      g.fillCircle(-30, -10, 3);
-      g.fillCircle(30, -10, 3);
-      // Legs
-      g.lineBetween(-8, 18, -14, 35);
-      g.lineBetween(8, 18, 14, 35);
-      // Feet
-      g.fillCircle(-14, 35, 3);
-      g.fillCircle(14, 35, 3);
-
+      this.drawEnemyLimbs(g, 0xcc6600);
       // Angry mouth
       g.lineStyle(2, 0x880000, 1);
       g.beginPath();
       g.arc(0, 5, 6, Math.PI, 0, false);
       g.strokePath();
     }
+  }
+
+  drawPepperoniEnemy(g, data) {
+    // Darker orange/red pizza body
+    g.fillStyle(0xcc4400, 1);
+    g.fillCircle(0, 0, 18);
+    g.lineStyle(3, 0x992200, 1);
+    g.strokeCircle(0, 0, 18);
+
+    // Pepperoni toppings — larger, more prominent
+    g.fillStyle(0x881100, 1);
+    g.fillCircle(-7, -5, 5);
+    g.fillCircle(6, 4, 5);
+    g.fillCircle(-3, 8, 4);
+    g.fillCircle(9, -6, 4);
+    g.fillCircle(0, -9, 3);
+
+    // Meaner eyes
+    g.fillStyle(0xffff00, 1);
+    g.fillCircle(-5, -3, 4);
+    g.fillCircle(5, -3, 4);
+    g.fillStyle(0x000000, 1);
+    g.fillCircle(-4, -2, 2);
+    g.fillCircle(6, -2, 2);
+
+    if (data.alerted) {
+      this.drawEnemyLimbs(g, 0x992200);
+      // The Stick — pepperoni rod weapon extending from arm
+      const dir = data.direction;
+      g.lineStyle(5, 0x661100, 1);
+      g.lineBetween(dir * 30, -10, dir * 55, -20);
+      g.fillStyle(0x881100, 1);
+      g.fillCircle(dir * 55, -20, 4);
+      // Angry mouth with teeth
+      g.lineStyle(2, 0xff0000, 1);
+      g.beginPath();
+      g.arc(0, 5, 6, Math.PI, 0, false);
+      g.strokePath();
+      g.fillStyle(0xffffff, 1);
+      g.fillRect(-4, 5, 3, 3);
+      g.fillRect(2, 5, 3, 3);
+    }
+  }
+
+  drawMargheritaEnemy(g, data) {
+    // Much larger pizza circle
+    g.fillStyle(0xff9944, 1);
+    g.fillCircle(0, 0, 28);
+    g.lineStyle(4, 0xcc7722, 1);
+    g.strokeCircle(0, 0, 28);
+
+    // Basil leaves (green spots)
+    g.fillStyle(0x44aa22, 1);
+    g.fillCircle(-10, -8, 5);
+    g.fillCircle(8, 6, 5);
+    g.fillCircle(-5, 12, 4);
+    g.fillCircle(12, -10, 4);
+
+    // Mozzarella blobs
+    g.fillStyle(0xffffcc, 0.7);
+    g.fillCircle(-12, 4, 6);
+    g.fillCircle(5, -12, 5);
+    g.fillCircle(10, 10, 5);
+
+    // Eyes — bigger, expressive
+    g.fillStyle(0xffffff, 1);
+    g.fillCircle(-8, -5, 6);
+    g.fillCircle(8, -5, 6);
+    g.fillStyle(0x000000, 1);
+    g.fillCircle(-7, -4, 3);
+    g.fillCircle(9, -4, 3);
+    // Eyelashes
+    g.lineStyle(1, 0x000000, 1);
+    g.lineBetween(-12, -10, -8, -8);
+    g.lineBetween(-7, -11, -6, -8);
+    g.lineBetween(5, -11, 6, -8);
+    g.lineBetween(10, -10, 12, -8);
+
+    // Lipstick mouth
+    g.fillStyle(0xcc2255, 1);
+    g.beginPath();
+    g.arc(0, 6, 7, 0, Math.PI, false);
+    g.fillPath();
+
+    if (data.alerted) {
+      this.drawEnemyLimbs(g, 0xcc7722, true);
+    }
+  }
+
+  drawEnemyLimbs(g, color, large) {
+    const scale = large ? 1.4 : 1;
+    g.lineStyle(2, color, 1);
+    // Arms
+    g.lineBetween(-18 * scale, 0, -30 * scale, -10 * scale);
+    g.lineBetween(18 * scale, 0, 30 * scale, -10 * scale);
+    g.fillStyle(color, 1);
+    g.fillCircle(-30 * scale, -10 * scale, 3 * scale);
+    g.fillCircle(30 * scale, -10 * scale, 3 * scale);
+    // Legs
+    g.lineBetween(-8 * scale, 18 * scale, -14 * scale, 35 * scale);
+    g.lineBetween(8 * scale, 18 * scale, 14 * scale, 35 * scale);
+    g.fillCircle(-14 * scale, 35 * scale, 3 * scale);
+    g.fillCircle(14 * scale, 35 * scale, 3 * scale);
+  }
+
+  // ---- BOSS: TRUMPLETHINPEN ----
+  createBoss() {
+    this.boss = this.add.container(1225, 480);
+    this.boss.setVisible(false);
+
+    const gfx = this.add.graphics();
+    this.boss.add(gfx);
+    this.boss.bossGfx = gfx;
+
+    this.physics.world.enable(this.boss);
+    this.boss.body.setSize(50, 60);
+    this.boss.body.setOffset(-25, -30);
+    this.boss.body.setCollideWorldBounds(true);
+    this.boss.body.setImmovable(true);
+
+    this.physics.add.collider(this.boss, this.platforms);
+    this.drawBoss();
+  }
+
+  drawBoss() {
+    const g = this.boss.bossGfx;
+    g.clear();
+
+    if (this.bossDefeated) return;
+
+    // Large green troll blob body
+    g.fillStyle(0x44aa44, 1);
+    g.fillEllipse(0, 10, 50, 60);
+    g.lineStyle(2, 0x228822, 1);
+    g.strokeEllipse(0, 10, 50, 60);
+
+    // Head (slightly smaller green circle on top)
+    g.fillStyle(0x55bb55, 1);
+    g.fillCircle(0, -22, 20);
+
+    // Blonde hair — yellow scribble on top
+    g.lineStyle(3, 0xffdd44, 1);
+    g.beginPath();
+    g.moveTo(-15, -35);
+    g.cubicBezierTo(-8, -48, 0, -42, 5, -48);
+    g.strokePath();
+    g.beginPath();
+    g.moveTo(-10, -38);
+    g.cubicBezierTo(-3, -50, 5, -44, 12, -48);
+    g.strokePath();
+    g.beginPath();
+    g.moveTo(-5, -36);
+    g.cubicBezierTo(2, -52, 8, -46, 15, -42);
+    g.strokePath();
+    // Extra swoosh
+    g.lineStyle(4, 0xeebb22, 1);
+    g.beginPath();
+    g.moveTo(5, -40);
+    g.cubicBezierTo(12, -50, 18, -44, 22, -36);
+    g.strokePath();
+
+    // Eyes — squinty
+    g.fillStyle(0xffffff, 1);
+    g.fillEllipse(-7, -24, 8, 5);
+    g.fillEllipse(7, -24, 8, 5);
+    g.fillStyle(0x2244aa, 1);
+    g.fillCircle(-7, -24, 2);
+    g.fillCircle(7, -24, 2);
+
+    // Mouth — frowning/scowling
+    g.lineStyle(2, 0x226622, 1);
+    g.beginPath();
+    g.arc(0, -14, 8, 0.2, Math.PI - 0.2, true);
+    g.strokePath();
+
+    // Tiny pen in right hand
+    g.lineStyle(1, 0x222222, 1);
+    g.lineBetween(25, 5, 35, -8);
+    g.fillStyle(0x1111aa, 1);
+    g.fillRect(33, -10, 4, 8);
+    // Pen tip
+    g.fillStyle(0x888888, 1);
+    g.fillTriangle(34, -10, 36, -10, 35, -14);
+
+    // Arms
+    g.lineStyle(3, 0x44aa44, 1);
+    g.lineBetween(-25, 5, -35, -5);
+    g.lineBetween(25, 5, 33, -2);
+
+    // HP bar above
+    if (this.bossActive) {
+      const barW = 60;
+      const barH = 6;
+      const hpFrac = this.bossHP / 10;
+      g.fillStyle(0x333333, 1);
+      g.fillRect(-barW / 2, -50, barW, barH);
+      g.fillStyle(0xff2222, 1);
+      g.fillRect(-barW / 2, -50, barW * hpFrac, barH);
+      g.lineStyle(1, 0xffffff, 0.5);
+      g.strokeRect(-barW / 2, -50, barW, barH);
+    }
+  }
+
+  updateBoss(delta) {
+    if (this.bossDefeated) return;
+
+    const dist = Phaser.Math.Distance.Between(
+      this.player.x, this.player.y, 1225, this.boss.y
+    );
+
+    // Activate boss when player approaches bridge
+    if (!this.bossActive && dist < 250) {
+      this.bossActive = true;
+      this.boss.setVisible(true);
+      // Boss entrance — rise up
+      this.tweens.add({
+        targets: this.boss,
+        y: 480,
+        duration: 500,
+        ease: 'Power2',
+      });
+      // Show name
+      const nameText = this.add.text(1225, 420, 'TRUMPLETHINPEN', {
+        fontSize: '16px',
+        fontFamily: 'Impact, sans-serif',
+        color: '#ffdd44',
+        stroke: '#000000',
+        strokeThickness: 3,
+      }).setOrigin(0.5).setDepth(60);
+      this.tweens.add({
+        targets: nameText,
+        alpha: 0,
+        y: 400,
+        duration: 3000,
+        onComplete: () => nameText.destroy(),
+      });
+    }
+
+    if (!this.bossActive) return;
+
+    // Boss faces player
+    const faceDir = this.player.x > this.boss.x ? 1 : -1;
+
+    // Attack: throw executive orders periodically
+    this.bossAttackTimer -= delta;
+    if (this.bossAttackTimer <= 0) {
+      this.bossAttackTimer = 2000; // every 2 seconds
+      this.throwExecutiveOrder();
+    }
+
+    // Damage player on contact
+    const contactDist = Phaser.Math.Distance.Between(
+      this.player.x, this.player.y, this.boss.x, this.boss.y
+    );
+    if (contactDist < 40) {
+      this.damagePlayer();
+    }
+
+    this.drawBoss();
+  }
+
+  throwExecutiveOrder() {
+    if (this.bossDefeated) return;
+
+    const order = this.add.container(this.boss.x, this.boss.y - 30);
+    this.physics.world.enable(order);
+
+    const gfx = this.add.graphics();
+    // White rectangle — executive order paper
+    gfx.fillStyle(0xffffff, 0.95);
+    gfx.fillRect(-15, -10, 30, 20);
+    gfx.lineStyle(1, 0x888888, 1);
+    gfx.strokeRect(-15, -10, 30, 20);
+    // Lines of "text"
+    gfx.fillStyle(0x222222, 0.5);
+    gfx.fillRect(-11, -6, 22, 2);
+    gfx.fillRect(-11, -1, 18, 2);
+    gfx.fillRect(-11, 4, 20, 2);
+    // Signature scrawl
+    gfx.lineStyle(1, 0x1111aa, 1);
+    gfx.beginPath();
+    gfx.moveTo(-5, 8);
+    gfx.lineTo(0, 6);
+    gfx.lineTo(5, 9);
+    gfx.lineTo(10, 7);
+    gfx.strokePath();
+
+    order.add(gfx);
+
+    // Float toward player slowly
+    const angle = Phaser.Math.Angle.Between(
+      this.boss.x, this.boss.y, this.player.x, this.player.y
+    );
+    order.body.setVelocity(
+      Math.cos(angle) * 80,
+      Math.sin(angle) * 40 + 30 // float downward bias
+    );
+    order.body.setAllowGravity(false);
+
+    order.orderData = { alive: true };
+    this.executiveOrders.add(order);
+
+    // Auto-destroy after 5 seconds
+    this.time.delayedCall(5000, () => {
+      if (order && order.scene) order.destroy();
+    });
+  }
+
+  checkExecutiveOrders() {
+    this.executiveOrders.getChildren().forEach(order => {
+      if (!order.orderData || !order.orderData.alive) return;
+
+      const dist = Phaser.Math.Distance.Between(
+        this.player.x, this.player.y, order.x, order.y
+      );
+
+      if (dist < 25) {
+        this.damagePlayer();
+        order.orderData.alive = false;
+        // Paper crumple effect
+        this.tweens.add({
+          targets: order,
+          scaleX: 0,
+          scaleY: 0,
+          alpha: 0,
+          duration: 200,
+          onComplete: () => order.destroy(),
+        });
+      }
+    });
+  }
+
+  hitBoss() {
+    if (this.bossDefeated || !this.bossActive) return;
+
+    this.bossHP--;
+
+    // Speech bubble
+    this.showBossSpeechBubble(TRUMP_LINES[this.bossLineIndex % TRUMP_LINES.length]);
+    this.bossLineIndex++;
+
+    // Knockback boss slightly
+    this.cameras.main.shake(100, 0.008);
+
+    if (this.bossHP <= 0) {
+      this.defeatBoss();
+    }
+
+    this.drawBoss();
+  }
+
+  showBossSpeechBubble(text) {
+    const bx = this.boss.x;
+    const by = this.boss.y - 70;
+
+    const bubbleWidth = Math.min(text.length * 7 + 20, 350);
+    const bubble = this.add.graphics();
+    bubble.fillStyle(0xffffff, 0.95);
+    bubble.fillRoundedRect(bx - bubbleWidth / 2, by - 16, bubbleWidth, 28, 8);
+    bubble.fillTriangle(bx - 5, by + 12, bx + 5, by + 12, bx, by + 20);
+
+    const bubbleText = this.add.text(bx, by, text, {
+      fontSize: '10px',
+      fontFamily: 'Arial, sans-serif',
+      fontStyle: 'bold',
+      color: '#222222',
+      wordWrap: { width: bubbleWidth - 10 },
+    }).setOrigin(0.5);
+
+    this.time.delayedCall(2500, () => {
+      bubble.destroy();
+      bubbleText.destroy();
+    });
+  }
+
+  defeatBoss() {
+    this.bossDefeated = true;
+    this.bossActive = false;
+
+    // Pen falls animation
+    const penFall = this.add.graphics();
+    penFall.fillStyle(0x1111aa, 1);
+    penFall.fillRect(-2, -4, 4, 8);
+    penFall.fillStyle(0x888888, 1);
+    penFall.fillTriangle(-1, -4, 1, -4, 0, -7);
+    penFall.x = this.boss.x + 35;
+    penFall.y = this.boss.y - 8;
+
+    this.tweens.add({
+      targets: penFall,
+      y: penFall.y + 100,
+      angle: 180,
+      duration: 800,
+      onComplete: () => {
+        this.time.delayedCall(2000, () => penFall.destroy());
+      },
+    });
+
+    // Boss shrinks
+    this.tweens.add({
+      targets: this.boss,
+      scaleX: 0.1,
+      scaleY: 0.1,
+      alpha: 0.3,
+      duration: 1500,
+      ease: 'Power2',
+      onComplete: () => {
+        this.boss.setVisible(false);
+      },
+    });
+
+    // Victory text
+    const victoryText = this.add.text(1225, 400, 'EXECUTIVE ORDER REVOKED', {
+      fontSize: '24px',
+      fontFamily: 'Impact, sans-serif',
+      fontStyle: 'bold',
+      color: '#ffdd44',
+      stroke: '#000000',
+      strokeThickness: 4,
+    }).setOrigin(0.5).setDepth(80);
+
+    this.tweens.add({
+      targets: victoryText,
+      y: 350,
+      alpha: 0,
+      duration: 4000,
+      ease: 'Power1',
+      onComplete: () => victoryText.destroy(),
+    });
+
+    // Destroy all executive orders
+    this.executiveOrders.clear(true, true);
   }
 
   // ---- HUD ----
@@ -563,13 +1237,10 @@ class GameScene extends Phaser.Scene {
       const hx = GAME_WIDTH / 2 - 50 + i * 40;
       const hy = GAME_HEIGHT - 45;
       if (i < this.playerHP) {
-        // Full heart
         this.hudHearts.fillStyle(0xff2244, 1);
       } else {
-        // Empty heart
         this.hudHearts.fillStyle(0x442222, 1);
       }
-      // Heart shape (two circles + triangle)
       this.hudHearts.fillCircle(hx - 5, hy - 3, 7);
       this.hudHearts.fillCircle(hx + 5, hy - 3, 7);
       this.hudHearts.fillTriangle(hx - 12, hy, hx + 12, hy, hx, hy + 12);
@@ -578,7 +1249,7 @@ class GameScene extends Phaser.Scene {
 
   // ---- GERALD COUNTDOWN ----
   tickGerald() {
-    if (this.geraldTimer <= 0) return;
+    if (this.geraldTimer <= 0 || this.geraldSaved) return;
 
     this.geraldTimer--;
     const mins = Math.floor(this.geraldTimer / 60);
@@ -599,6 +1270,10 @@ class GameScene extends Phaser.Scene {
   }
 
   geraldFailed() {
+    // Hide Gerald
+    this.gerald.setVisible(false);
+    this.geraldLabel.setVisible(false);
+
     // Red flash
     this.failOverlay.setAlpha(0.6);
     this.failText.setVisible(true);
@@ -609,41 +1284,58 @@ class GameScene extends Phaser.Scene {
       this.failText.setVisible(false);
       this.geraldTimer = GERALD_TIME;
       this.hudGeraldText.setColor('#ff8844');
+      this.gerald.setVisible(true);
+      this.geraldLabel.setVisible(true);
     });
   }
 
   // ---- REALITY STATE SWITCHING ----
   switchRealityState(state) {
     if (this.realityState === state) return;
+    const prevState = this.realityState;
     this.realityState = state;
 
     const names = { 1: 'PHYSICAL', 2: 'INVERSE', 3: 'COIN STATE' };
     const colors = { 1: '#ff4444', 2: '#4488ff', 3: '#ffdd00' };
+    const flashColors = { 1: 0xff4444, 2: 0x4488ff, 3: 0xffdd00 };
 
     this.hudStateText.setText(names[state]);
     this.hudStateText.setColor(colors[state]);
     this.drawStateDot();
 
+    // Visual flash transition
+    this.stateFlash.setFillStyle(flashColors[state], 0.5);
+    this.tweens.add({
+      targets: this.stateFlash,
+      alpha: { from: 0.5, to: 0 },
+      duration: 300,
+      ease: 'Power2',
+    });
+
     // Apply gravity changes
     if (state === 1) {
-      this.player.body.setGravityY(0); // default world gravity applies
       this.physics.world.gravity.y = GRAVITY;
     } else if (state === 2) {
-      this.physics.world.gravity.y = -GRAVITY; // reverse!
+      // Instant snap — set gravity and give an initial velocity kick
+      this.physics.world.gravity.y = -GRAVITY;
+      // Snap to ceiling direction instantly
+      this.player.body.setVelocityY(-300);
     } else if (state === 3) {
       this.physics.world.gravity.y = GRAVITY * 0.3; // floaty in coin state
     }
 
-    // Redraw player for transparency change
-    this.drawPlayer();
+    // Coin state: disable ALL platform collision (player walks through everything)
+    if (state === 3) {
+      this.platformCollider.active = false;
+      // Make platforms semi-transparent
+      this.platformGraphics.forEach(p => p.gfx.setAlpha(0.3));
+    } else {
+      this.platformCollider.active = true;
+      this.platformGraphics.forEach(p => p.gfx.setAlpha(1));
+    }
 
-    // Camera flash for feedback
-    this.cameras.main.flash(200,
-      state === 1 ? 255 : 0,
-      state === 2 ? 100 : 0,
-      state === 3 ? 200 : 0,
-      true
-    );
+    // Redraw player for transparency / flip change
+    this.drawPlayer();
   }
 
   // ---- ATTACK ----
@@ -654,14 +1346,25 @@ class GameScene extends Phaser.Scene {
 
     // Check enemies in range
     this.enemies.getChildren().forEach(enemy => {
-      if (!enemy.enemyData.alive) return;
+      if (!enemy.enemyData || !enemy.enemyData.alive) return;
       const dist = Phaser.Math.Distance.Between(
         this.player.x, this.player.y, enemy.x, enemy.y
       );
-      if (dist < ATTACK_RANGE) {
+      const range = enemy.enemyData.type === 'margherita' ? ATTACK_RANGE + 15 : ATTACK_RANGE;
+      if (dist < range) {
         this.hitEnemy(enemy);
       }
     });
+
+    // Check boss in range
+    if (this.bossActive && !this.bossDefeated) {
+      const bossDist = Phaser.Math.Distance.Between(
+        this.player.x, this.player.y, this.boss.x, this.boss.y
+      );
+      if (bossDist < ATTACK_RANGE + 10) {
+        this.hitBoss();
+      }
+    }
 
     // Visual: brief attack animation
     this.drawPlayer();
@@ -675,8 +1378,9 @@ class GameScene extends Phaser.Scene {
     const data = enemy.enemyData;
     data.hp--;
 
-    // Show speech bubble with crybaby line
-    this.showSpeechBubble(enemy, CRYBABY_LINES[data.crybabyIndex % CRYBABY_LINES.length]);
+    // Show speech bubble based on type
+    const lines = data.type === 'pepperoni' ? PEPPERONI_LINES : CRYBABY_LINES;
+    this.showSpeechBubble(enemy, lines[data.crybabyIndex % lines.length]);
     data.crybabyIndex++;
 
     // Knockback
@@ -731,6 +1435,17 @@ class GameScene extends Phaser.Scene {
     const data = enemy.enemyData;
     data.alive = false;
 
+    // Store respawn data
+    this.deadEnemyData.push({
+      x: data.spawnX,
+      y: data.spawnY,
+      patrolLeft: data.patrolLeft,
+      patrolRight: data.patrolRight,
+      id: data.id,
+      type: data.type,
+      timer: ENEMY_RESPAWN_TIME,
+    });
+
     // Flour cloud particle burst — white circles exploding outward
     for (let i = 0; i < 15; i++) {
       const particle = this.add.graphics();
@@ -751,22 +1466,105 @@ class GameScene extends Phaser.Scene {
       });
     }
 
+    // Margherita defeat line
+    if (data.type === 'margherita') {
+      const defeatText = this.add.text(enemy.x, enemy.y - 30, '"I was just doing a bit."', {
+        fontSize: '14px',
+        fontFamily: 'Georgia, serif',
+        fontStyle: 'italic',
+        color: '#ffaacc',
+        stroke: '#000000',
+        strokeThickness: 2,
+      }).setOrigin(0.5);
+      this.tweens.add({
+        targets: defeatText,
+        y: defeatText.y - 50,
+        alpha: 0,
+        duration: 3000,
+        onComplete: () => defeatText.destroy(),
+      });
+    }
+
     // Remove enemy
     enemy.destroy();
+  }
+
+  // ---- ENEMY RESPAWNING ----
+  checkRespawns() {
+    for (let i = this.deadEnemyData.length - 1; i >= 0; i--) {
+      const data = this.deadEnemyData[i];
+      data.timer -= 1000;
+      if (data.timer <= 0) {
+        // Respawn this enemy
+        this.createEnemy(data.x, data.y, data.patrolLeft, data.patrolRight, data.id, data.type);
+        this.deadEnemyData.splice(i, 1);
+      }
+    }
+  }
+
+  // ---- MARGHERITA SHOCKWAVE ----
+  margheritaShockwave(enemy) {
+    const data = enemy.enemyData;
+    if (data.shockwaveCooldown > 0) return;
+    data.shockwaveCooldown = 4000; // 4 second cooldown
+
+    // Jump up
+    enemy.body.setVelocityY(-250);
+    data.isJumping = true;
+
+    // After landing, create shockwave
+    this.time.delayedCall(800, () => {
+      if (!data.alive) return;
+      data.isJumping = false;
+
+      // Shockwave visual — expanding ring
+      const wave = this.add.graphics();
+      let radius = 10;
+      const maxRadius = 120;
+
+      const waveTimer = this.time.addEvent({
+        delay: 16,
+        loop: true,
+        callback: () => {
+          wave.clear();
+          radius += 4;
+          const alpha = 1 - (radius / maxRadius);
+          wave.lineStyle(3, 0xff6622, alpha);
+          wave.strokeCircle(enemy.x, enemy.y + 20, radius);
+
+          // Damage player if in range
+          const dist = Phaser.Math.Distance.Between(
+            this.player.x, this.player.y, enemy.x, enemy.y
+          );
+          if (dist < radius + 10 && dist > radius - 20 && alpha > 0.2) {
+            this.damagePlayer();
+          }
+
+          if (radius >= maxRadius) {
+            waveTimer.remove();
+            wave.destroy();
+          }
+        },
+      });
+
+      // Camera shake for impact
+      this.cameras.main.shake(200, 0.01);
+    });
   }
 
   // ---- GREASE TRAIL ----
   leaveGreaseTrail(enemy) {
     const data = enemy.enemyData;
     if (data.greaseCooldown > 0) return;
-    data.greaseCooldown = 200; // ms between grease drops
+    data.greaseCooldown = 200;
 
     const grease = this.add.graphics();
-    grease.fillStyle(0xffdd00, 0.25);
+    const color = data.type === 'pepperoni' ? 0xcc6600 :
+                  data.type === 'margherita' ? 0xffbb44 : 0xffdd00;
+    grease.fillStyle(color, 0.25);
     grease.fillEllipse(enemy.x, enemy.y + 18, 16, 6);
     this.greaseTrails.add(grease);
 
-    // Fade out grease after a while
     this.time.delayedCall(5000, () => {
       this.tweens.add({
         targets: grease,
@@ -786,9 +1584,9 @@ class GameScene extends Phaser.Scene {
     this.cameras.main.shake(200, 0.01);
 
     if (this.playerHP <= 0) {
-      // Reset to menu
-      this.time.delayedCall(1000, () => {
-        this.scene.start('MenuScene');
+      // Death — go to death screen
+      this.time.delayedCall(800, () => {
+        this.scene.start('DeathScene');
       });
     }
   }
@@ -851,15 +1649,17 @@ class GameScene extends Phaser.Scene {
       this.performAttack();
     }
 
-    // -- Coin State: disable platform collisions --
-    if (this.realityState === 3) {
-      // In coin state, player passes through platforms (except ground)
-      this.player.body.checkCollision.down = false;
-      this.player.body.checkCollision.up = false;
-    } else {
-      this.player.body.checkCollision.down = true;
-      this.player.body.checkCollision.up = true;
+    // -- Gerald rescue check --
+    this.checkGeraldRescue();
+
+    // -- Gerald label follows Gerald --
+    if (this.gerald && this.gerald.visible && this.geraldLabel) {
+      this.geraldLabel.setPosition(this.gerald.x, this.gerald.y - 30);
     }
+
+    // -- Boss update --
+    this.updateBoss(delta);
+    this.checkExecutiveOrders();
 
     // -- Enemy AI --
     this.enemies.getChildren().forEach(enemy => {
@@ -873,7 +1673,10 @@ class GameScene extends Phaser.Scene {
 
       // Alert state
       const wasAlerted = data.alerted;
-      data.alerted = dist < ENEMY_DETECT_RANGE;
+      const detectRange = data.type === 'pepperoni' ? ENEMY_DETECT_RANGE * 1.3 :
+                          data.type === 'margherita' ? ENEMY_DETECT_RANGE * 1.5 :
+                          ENEMY_DETECT_RANGE;
+      data.alerted = dist < detectRange;
 
       // Redraw if alert state changed
       if (data.alerted !== wasAlerted) {
@@ -884,7 +1687,16 @@ class GameScene extends Phaser.Scene {
       if (data.alerted) {
         // Chase player
         const chaseDir = this.player.x > enemy.x ? 1 : -1;
+        data.direction = chaseDir;
         enemy.body.setVelocityX(chaseDir * data.speed * 1.5);
+
+        // Margherita shockwave when close
+        if (data.type === 'margherita' && dist < 100) {
+          data.shockwaveCooldown -= delta;
+          if (data.shockwaveCooldown <= 0) {
+            this.margheritaShockwave(enemy);
+          }
+        }
       } else {
         // Patrol
         enemy.body.setVelocityX(data.direction * data.speed);
@@ -900,7 +1712,9 @@ class GameScene extends Phaser.Scene {
       this.drawEnemy(enemy);
 
       // Damage player on contact
-      if (dist < 30) {
+      const contactRange = data.type === 'margherita' ? 40 :
+                           data.type === 'pepperoni' ? 35 : 30;
+      if (dist < contactRange) {
         this.damagePlayer();
       }
     });
@@ -922,7 +1736,7 @@ const config = {
       debug: false,
     },
   },
-  scene: [MenuScene, IntroScene, GameScene],
+  scene: [MenuScene, IntroScene, GameScene, DeathScene],
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
