@@ -911,21 +911,21 @@ class GameScene extends Phaser.Scene {
     g.lineStyle(3, 0xffdd44, 1);
     g.beginPath();
     g.moveTo(-15, -35);
-    g.cubicBezierTo(-8, -48, 0, -42, 5, -48);
+    g.bezierCurveTo(-8, -48, 0, -42, 5, -48);
     g.strokePath();
     g.beginPath();
     g.moveTo(-10, -38);
-    g.cubicBezierTo(-3, -50, 5, -44, 12, -48);
+    g.bezierCurveTo(-3, -50, 5, -44, 12, -48);
     g.strokePath();
     g.beginPath();
     g.moveTo(-5, -36);
-    g.cubicBezierTo(2, -52, 8, -46, 15, -42);
+    g.bezierCurveTo(2, -52, 8, -46, 15, -42);
     g.strokePath();
     // Extra swoosh
     g.lineStyle(4, 0xeebb22, 1);
     g.beginPath();
     g.moveTo(5, -40);
-    g.cubicBezierTo(12, -50, 18, -44, 22, -36);
+    g.bezierCurveTo(12, -50, 18, -44, 22, -36);
     g.strokePath();
 
     // Eyes — squinty
