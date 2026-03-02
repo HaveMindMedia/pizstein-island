@@ -162,19 +162,30 @@ class IntroScene extends Phaser.Scene {
       cardText.setText(cards[cardIndex]);
       cardText.setAlpha(0);
 
+      // Fade in
       this.tweens.add({
         targets: cardText,
         alpha: 1,
         duration: 400,
-        hold: 1400,
-        yoyo: true,
         onComplete: () => {
-          cardIndex++;
-          if (cardIndex < cards.length) {
-            showCard();
-          } else {
-            this.scene.start('GameScene');
-          }
+          // Hold, then fade out
+          this.time.delayedCall(1400, () => {
+            this.tweens.add({
+              targets: cardText,
+              alpha: 0,
+              duration: 400,
+              onComplete: () => {
+                cardIndex++;
+                if (cardIndex < cards.length) {
+                  showCard();
+                } else {
+                  this.time.delayedCall(200, () => {
+                    this.scene.start('GameScene');
+                  });
+                }
+              },
+            });
+          });
         },
       });
     };
