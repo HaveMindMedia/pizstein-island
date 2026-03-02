@@ -265,6 +265,7 @@ class GameScene extends Phaser.Scene {
   }
 
   create() {
+    try {
     // -- World setup --
     this.cameras.main.setBackgroundColor('#2a1a0a');
     this.physics.world.setBounds(0, 0, 2400, GAME_HEIGHT);
@@ -382,6 +383,10 @@ class GameScene extends Phaser.Scene {
     this.stateFlash = this.add.rectangle(
       GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0xffffff, 0
     ).setScrollFactor(0).setDepth(99);
+    } catch(e) {
+      console.error('GameScene.create() CRASHED:', e.message, e.stack);
+      this.add.text(100, 100, 'ERROR: ' + e.message, { fontSize: '18px', color: '#ff0000' });
+    }
   }
 
   // ---- BACKGROUND DRAWING ----
