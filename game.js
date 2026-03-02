@@ -298,8 +298,9 @@ class GameScene extends Phaser.Scene {
     this.platformGraphics = []; // track platform gfx for coin-state hiding
     this.createPlatforms();
 
-    // -- Grease trails (visual only) --
-    this.greaseTrails = this.add.group();
+    // -- Grease trails (single shared Graphics object) --
+    this.greaseGfx = this.add.graphics();
+    this.greasePositions = [];
 
     // -- Player --
     this.createPlayer();
@@ -352,6 +353,13 @@ class GameScene extends Phaser.Scene {
       delay: 1000,
       loop: true,
       callback: () => this.checkRespawns(),
+    });
+
+    // -- Grease trail redraw timer (single Graphics object) --
+    this.time.addEvent({
+      delay: 500,
+      loop: true,
+      callback: () => this.redrawGrease(),
     });
 
     // -- Failure overlay (hidden initially) --
@@ -719,6 +727,9 @@ class GameScene extends Phaser.Scene {
 
     this.physics.add.collider(container, this.platforms);
     this.enemies.add(container);
+
+    // Initial draw so enemies are visible immediately
+    this.drawEnemy(container);
   }
 
   drawEnemy(container) {
@@ -1024,8 +1035,6 @@ class GameScene extends Phaser.Scene {
     if (contactDist < 40) {
       this.damagePlayer();
     }
-
-    this.drawBoss();
   }
 
   throwExecutiveOrder() {
@@ -1569,20 +1578,32 @@ class GameScene extends Phaser.Scene {
     if (data.greaseCooldown > 0) return;
     data.greaseCooldown = 200;
 
-    const grease = this.add.graphics();
     const color = data.type === 'pepperoni' ? 0xcc6600 :
                   data.type === 'margherita' ? 0xffbb44 : 0xffdd00;
-    grease.fillStyle(color, 0.25);
-    grease.fillEllipse(enemy.x, enemy.y + 18, 16, 6);
-    this.greaseTrails.add(grease);
+    this.greasePositions.push({
+      x: enemy.x,
+      y: enemy.y + 18,
+      color: color,
+      time: this.time.now,
+    });
+  }
 
-    this.time.delayedCall(5000, () => {
-      this.tweens.add({
-        targets: grease,
-        alpha: 0,
-        duration: 1000,
-        onComplete: () => grease.destroy(),
-      });
+  redrawGrease() {
+    const now = this.time.now;
+    const maxAge = 6000;
+
+    // Prune expired positions
+    this.greasePositions = this.greasePositions.filter(g => now - g.time < maxAge);
+
+    // Redraw all on the single shared Graphics object
+    this.greaseGfx.clear();
+    this.greasePositions.forEach(g => {
+      const age = now - g.time;
+      const alpha = age > 5000 ? 0.25 * (1 - (age - 5000) / 1000) : 0.25;
+      if (alpha > 0.01) {
+        this.greaseGfx.fillStyle(g.color, alpha);
+        this.greaseGfx.fillEllipse(g.x, g.y, 16, 6);
+      }
     });
   }
 
@@ -1689,12 +1710,8 @@ class GameScene extends Phaser.Scene {
                           ENEMY_DETECT_RANGE;
       data.alerted = dist < detectRange;
 
-      // Redraw if alert state changed
-      if (data.alerted !== wasAlerted) {
-        this.drawEnemy(enemy);
-      }
-
       // Movement: patrol or chase
+      const prevDirection = data.direction;
       if (data.alerted) {
         // Chase player
         const chaseDir = this.player.x > enemy.x ? 1 : -1;
@@ -1715,12 +1732,14 @@ class GameScene extends Phaser.Scene {
         if (enemy.x >= data.patrolRight) data.direction = -1;
       }
 
+      // Redraw only when visual state changes (alert or direction)
+      if (data.alerted !== wasAlerted || data.direction !== prevDirection) {
+        this.drawEnemy(enemy);
+      }
+
       // Leave grease trail
       data.greaseCooldown -= delta;
       this.leaveGreaseTrail(enemy);
-
-      // Draw enemy each frame (for alert visuals)
-      this.drawEnemy(enemy);
 
       // Damage player on contact
       const contactRange = data.type === 'margherita' ? 40 :
